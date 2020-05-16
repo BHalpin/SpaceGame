@@ -319,7 +319,7 @@ function animate() {
      document.getElementById("infoModal").style.display = "block";
    }
 
-   planetThree.children[0].children[1].identity().translate(2 * Math.sin(time),0, 2 * Math.cos(time)).scale(0.1);
+   planetThree.children[0].children[1].identity().translate(2.1 * Math.sin(time * 0.1),0, 2.1 * Math.cos(time * 0.1)).scale(0.2);
    //scene.rotateY(theta);
    scene.scale(sceneScale);
    scene.rotateY(theta);
@@ -345,7 +345,7 @@ let scene = root.add();
 //planetTwo.png from duael
 planetOne = addPlanet(1,0.5,-15, red_plastic, 3.4, "planetTwo.png", 0,0,0,0.1);
 planetTwo = addPlanet(-7,10,-52, blue_plastic, 1, "planetOne.jpg", Math.PI/2, Math.PI, 0);
-planetThree = addPlanet(-14, 6, -47, green_plastic, 2, 0, 0, 0, 0, 1);
+planetThree = addPlanet(-14, 6, -47, green_plastic, 2, "planetThree.png", 0, 0, 0, 1);
 planetFour = addPlanet(1.2, 15, -100, green_plastic, 2);
 planetFive = addPlanet(15, 15, -90, blue_plastic, 2);
 
