@@ -1,0 +1,274 @@
+<!-- <br>
+Rotate view
+<input type=range min=1 max=100 value=50 class=slider id=rotateViewSlider>
+<p>
+<table><tr><td>Object shape:<td><div id=shapeButtons></div></table>
+<table><tr><td>Object color:<td><div id=colorButtons></div></table>
+<table><tr><td>Object texture:<td><div id=textureButtons></div></table>
+
+<table><tr>
+<td>Rotate
+<br>X <input type=range min=1 max=100 value=50 class=slider id=rotateXSlider>
+<br>Y <input type=range min=1 max=100 value=50 class=slider id=rotateYSlider>
+<br>Z <input type=range min=1 max=100 value=50 class=slider id=rotateZSlider>
+
+<td width=20>
+
+<td>Scale
+<br>X <input type=range min=1 max=100 value=25 class=slider id=scaleXSlider>
+<br>Y <input type=range min=1 max=100 value=25 class=slider id=scaleYSlider>
+<br>Z <input type=range min=1 max=100 value=25 class=slider id=scaleZSlider>
+
+</table>
+
+<p>
+<button onClick=deleteSelectedObject()><b>DELETE</b></button> -->
+
+
+<!-- <script id='my_title' type='text/html'>
+BUILDING A SIMPLE MODELER
+</script> -->
+<!-- <script id='my_instructions' type='text/html'><font color=#b0b0b0>
+We implement the beginnings of an interactive modeler.
+<p>
+This modeler only does very simple things, like
+allow the creation, coloring and placement of a few primitive shapes,
+as well as shape deletion.
+<p>
+There is far more that can be done with a modeler,
+including
+creating freeform shapes
+and
+compound jointed objects.
+</script>
+ -->
+
+ // BUILD ALL OF THE COLOR BUTTONS.
+
+// let colors = 'white,red,gold,green,blue'.split(',');
+// let materials = [ white_plastic, red_plastic, gold, green_plastic, blue_plastic ];
+// let selectedColor = 0;
+
+// (() => {
+//    let s = '';
+//    for (let n = 0 ; n < colors.length ; n++) {
+//       s += '<input type=button '
+//          + 'id=colorButton' + n + ' '
+// 	 + 'style=\'border-style:none;'
+// 	 +         'background-color:' + colors[n] + '\''
+// 	 + 'onClick = selectColor(' + n + ')'
+//          + '>\n';
+//    }
+//    colorButtons.innerHTML = s;
+// })();
+
+// let selectColor = n => {
+//    selectedColor = n;
+//    for (let i = 0 ; i < colors.length ; i++) {
+//       let button = window['colorButton' + i];
+//       button.style.height = i == n ? 18 : 10;
+//    }
+// }
+
+//selectColor(0);
+
+
+// BUILD ALL OF THE SHAPE BUTTONS.
+
+// let shapeNames = 'sphere,cube'.split(',');
+// let shapes = [ sphere, cube ];
+// let selectedShape = 0;
+
+// (() => {
+//    let s = '';
+//    for (let n = 0 ; n < shapeNames.length ; n++) {
+//       let name = shapeNames[n];
+//       s += '<button '
+//          + 'id=shapeButton' + n + ' '
+// 	 + 'style=\'border-style:none\''
+// 	 + 'onClick=selectShape(' + n + ')>'
+// 	 + '<b>' + name + '</b>'
+//          + '</button> '
+//    }
+//    shapeButtons.innerHTML = s;
+// })();
+
+// let selectShape = n => {
+//    selectedShape = n;
+//    for (let n = 0 ; n < shapeNames.length ; n++) {
+//       let button = document.getElementById('shapeButton' + n);
+//       let bgColor = n == selectedShape ? 'white' : 'gray';
+//       button.style.backgroundColor = bgColor;
+//    }
+// }
+
+// selectShape(0);
+
+
+// BUILD ALL OF THE TEXTURE BUTTONS.
+
+// let textureNames = 'none,brick,polka dots'.split(',');
+// let textureFiles = [ null, 'brick.png', 'polkadots.png' ];
+// let selectedTexture = 0;
+
+// (() => {
+//    let s = '';
+//    for (let n = 0 ; n < textureNames.length ; n++) {
+//       let name = textureNames[n];
+//       s += '<button '
+//          + 'id=textureButton' + n + ' '
+// 	 + 'style=\'border-style:none\''
+// 	 + 'onClick=selectTexture(' + n + ')>'
+// 	 + '<b>' + name + '</b>'
+//          + '</button> '
+//    }
+//    textureButtons.innerHTML = s;
+// })();
+
+// let selectTexture = n => {
+//    selectedTexture = n;
+//    for (let n = 0 ; n < textureNames.length ; n++) {
+//       let button = document.getElementById('textureButton' + n);
+//       let bgColor = n == selectedTexture ? 'white' : 'gray';
+//       button.style.backgroundColor = bgColor;
+//    }
+// }
+
+// selectTexture(0);
+
+
+/********************************************************************************
+WE ARE COMMENTING THIS OUT SO THAT THE FRAGMENT SHADER EDITOR DOES NOT APPEAR.
+   
+   ,'<td valign=top>'
+   ,'<textArea id=textArea spellcheck=false '
+   ,'style="font:16px courier;outline-width:0;border-style:none;resize:none;overflow:scroll;"'
+   ,'></textArea>'
+********************************************************************************/
+
+/********************************************************************************
+WE ALSO COMMENT THIS OUT, AS PART OF COMMENTING OUT THE FRAGMENT SHADER EDITOR.
+
+// SET UP THE EDITABLE TEXT AREA ON THE LEFT SIDE.
+
+let text = fs.split('\n'), cols = 0;
+for (let i = 0 ; i < text.length ; i++)
+   cols = Math.max(cols, text[i].length);
+
+textArea.rows = text.length;
+textArea.cols = cols;
+textArea.value = fs;
+textArea.style.backgroundColor = '#202020';
+textArea.style.color = 'white';
+
+// REPARSE THE SHADER PROGRAM AFTER EVERY KEYSTROKE.
+
+textArea.onkeyup = function() { canvas1.setShaders(vs, this.value); }
+********************************************************************************/
+
+// THIS METHOD GETS CALLED WHENEVER THE USER ADJUSTS THE VIEW ROTATION SLIDER.
+
+// rotateViewSlider.oninput = function() {
+//    theta = Math.PI * (.5 - this.value / 50);
+// }
+
+
+// RESPONSE TO USER ADJUSTING SLIDER VALUES FOR ROTATING THE SELECTED OBJECT.
+
+// rotateXSlider.oninput = function() { rotateAboutAxis(0, this.value / 50 - 1); }
+// rotateYSlider.oninput = function() { rotateAboutAxis(1, this.value / 50 - 1); }
+// rotateZSlider.oninput = function() { rotateAboutAxis(2, this.value / 50 - 1); }
+
+// let rotateAboutAxis = (axis, value) => {
+//    if (selectedObject) {
+//       selectedObject.rotate[axis] = value;
+//       transformObject(selectedObject);
+//    }
+// }
+
+
+// RESPONSE TO USER ADJUSTING SLIDER VALUES FOR SCALING THE SELECTED OBJECT.
+
+// scaleXSlider.oninput = function() { scaleAboutAxis(0, this.value / 25); }
+// scaleYSlider.oninput = function() { scaleAboutAxis(1, this.value / 25); }
+// scaleZSlider.oninput = function() { scaleAboutAxis(2, this.value / 25); }
+
+// let scaleAboutAxis = (axis, value) => {
+//    if (selectedObject) {
+//       selectedObject.scale[axis] = value;
+//       transformObject(selectedObject);
+//    }
+// }
+
+   // // SET THE ROTATE AND SCALE SLIDERS FOR THE CURRENTLY SELECTED OBJECT.
+
+   // if (selectedObject) {
+   //    rotateXSlider.value = 50 * selectedObject.rotate[0] + 50;
+   //    rotateYSlider.value = 50 * selectedObject.rotate[1] + 50;
+   //    rotateZSlider.value = 50 * selectedObject.rotate[2] + 50;
+
+   //    scaleXSlider.value = 25 * selectedObject.scale[0];
+   //    scaleYSlider.value = 25 * selectedObject.scale[1];
+   //    scaleZSlider.value = 25 * selectedObject.scale[2];
+   // }
+
+   // //heroShip.identity();
+   
+   // heroShip.identity();
+   // if(turnLeft){
+   //    heroShipOrientation -= (Math.PI/100);
+   //    turnLeft = false;
+   // }
+   // if(turnRight){
+   //    heroShipOrientation += (Math.PI/100);
+   //    turnRight = false;
+   // }
+   // console.log(turnLeft, turnRight);
+   // window.addEventListener('keypress', function(e){
+   //    if(e.which == 119){
+   //      heroShip.translate(0.02 * Math.sin(heroShipOrientation),0,0.02 * Math.cos(heroShipOrientation));
+   //    }
+   //    if(e.which == 97){
+   //      heroShip.children[0].rotateY(Math.PI/100); 
+   //      heroShipOrientation += (Math.PI/100);
+   //    }
+   //  // if(e.which == 115){
+
+   //  // }
+   //    if(e.which == 100){
+   //      heroShip.children[0].rotateY(-Math.PI/100); 
+   //      heroShipOrientation -= (Math.PI/100);
+   //    }
+   //  }, false);
+   ///////////////////////////////////////////
+      //Determine if the hero ship is hitting any objects
+   //The hero ship is scene.children at index 2 (third object)
+   // for(let i = 0; i < scene.children.length; i++){
+   //    if(i != 2){
+   //      let x2 = scene.children[2]; 
+   //    }
+   // }
+// window.addEventListener('keypress', function(e){
+//   if(e.which == 119){
+//     heroShip.translate(0.02 * Math.sin(heroShipOrientation),0,0.02 * Math.cos(heroShipOrientation));
+//   }
+//   if(e.which == 97){
+//     heroShip.children[0].rotateY(Math.PI/100); 
+//     heroShipOrientation += (Math.PI/100);
+//   }
+//   // if(e.which == 115){
+
+//   // }
+//   if(e.which == 100){
+//     heroShip.children[0].rotateY(-Math.PI/100); 
+//     heroShipOrientation -= (Math.PI/100);
+//   }
+// }, false);
+  // switch(e.which){
+  //   case 119: heroShip.translate(0.02 * Math.sin(heroShipOrientation),0,0.02 * Math.cos(heroShipOrientation)); break; //w
+  //   case 97: heroShip.children[0].rotateY(Math.PI/100); heroShipOrientation += (Math.PI/100); break; //a
+  //   case 115: console.log("s"); break; //s
+  //   case 100: heroShip.children[0].rotateY(-Math.PI/100); heroShipOrientation -= (Math.PI/100); break; //d
+  // }
+//myCanvas.style.width = window.innerWidth * 0.9;
+//myCanvas.style.height = window.innerHeight * 0.9;

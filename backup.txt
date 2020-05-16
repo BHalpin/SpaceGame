@@ -1,0 +1,1101 @@
+<!-- Perlin's JS Library -->
+<script src=lib10.js></script>
+
+<!-- My custom library for ships -->
+<script src=ships.js></script>
+
+<body bgcolor=black text=white link=white alink=white vlink=white>
+<center>
+<input type=range min=1 max=100 value=50 class=slider id=rotateViewSlider>
+
+<!-- Canvas object -->
+<canvas id='canvas1' height=1280 width=720></canvas>
+</center>
+</body>
+
+<!!-------- VERTEX SHADER: YOU PROBABLY DON'T WANT TO CHANGE THIS RIGHT NOW -------->
+
+<script id='my_vertex_shader' type='x-shader/x-vertex'>
+   attribute vec3 aPos;
+   attribute vec3 aNor;
+   attribute vec2 aUV;
+   uniform   mat4 uPMat;
+   uniform   mat4 uMatF;
+   uniform   mat4 uMatI;
+   varying   vec3 vaPos;
+   varying   vec3 vPos;
+   varying   vec3 vNor;
+   varying   vec2 vUV;
+   void main() {
+      vec4 pos = uPMat * uMatF * vec4(aPos, 1.);
+      vec4 nor = vec4(aNor, 0.) * uMatI;
+      gl_Position = pos * vec4(1.,1.,1./10.,1.);
+      vaPos = aPos;
+      vPos = pos.xyz;
+      vNor = nor.xyz;
+      vUV  = aUV;
+   }
+</script>
+
+<!!-------- FRAGMENT SHADER: THIS IS WHERE YOU WILL DO YOUR WORK -------->
+
+<script id='my_fragment_shader' type='x-shader/x-fragment'>
+
+ const int nl = 3;            // NUMBER OF LIGHTS
+ uniform vec3  uLDir[nl];     // LIGHT DIRECTIONS
+ uniform vec3  uLCol[nl];     // LIGHT COLORS
+ uniform mat4  uM;            // MATERIAL PROPERTIES
+ uniform float uTime;         // TIME (CURRENTLY UNUSED)
+
+///////////////////////////////////////////////////////////////
+
+ uniform float uTexture;      // DO WE SHOW THE TEXTURE?
+ uniform sampler2D uSampler;  // SAMPLE THE TEXTURE USING vUV.
+
+///////////////////////////////////////////////////////////////
+
+ varying vec3  vPos;
+ varying vec3  vaPos;
+ varying vec3  vNor;
+ varying vec2  vUV;
+
+ void main() {
+    vec3 P = vPos;            // SURFACE POINT
+    vec3 N = normalize(vNor); // SURFACE NORMAL
+    vec3 E = vec3(0.,0.,1.);  // APPROX DIRECTION TO EYE
+
+    // UNPACK MATERIAL PROPERTIES MATRIX
+
+    mat4 material = uM;
+    vec3 ambient  = material[0].rgb;
+    vec3 diffuse  = material[1].rgb;
+    vec3 specular = material[2].rgb;
+    float p       = material[2].a;
+    float ta      = material[3].r;
+    float tf      = material[3].g;
+
+    // DO PHONG SHADING
+
+    vec3 color = ambient;
+    for (int i = 0 ; i < nl ; i++) {
+       vec3 R = 2. * dot(uLDir[i], N) * N - uLDir[i];
+       float d = max(0., dot(uLDir[i], N));
+       float s = pow(max(0., dot(E, R)), p);
+       color += uLCol[i] * (diffuse * d + specular * s);
+    }
+    color += specular * .02 * (.1 + noise(2. * N)) * N.z;
+    if (ta != 0.)
+       color *= 1. + ta * noise(vec3(tf * vUV, 0.));
+
+///////////////////////////////////////////////////////////////
+
+    vec4 texture = texture2D(uSampler, vUV);
+    color *= mix(vec3(1.,1.,1.), texture.rgb, texture.a * uTexture);
+
+///////////////////////////////////////////////////////////////
+
+    gl_FragColor = vec4(sqrt(color), 1.0);
+ }</script>
+
+<script>
+//Orientation of the ship's front 
+//0 = Dead ahead, 270 = Nose points to the left, etc.
+let heroShipOrientation = (3 * Math.PI)/2;
+
+//Keyboard events
+//Steering
+
+//Some of this code, specifically the code based on keeping an array of keys pressed
+//comes from this site
+//https://www.gavsblog.com/blog/detect-single-and-multiple-keypress-events-javascript
+
+const keysPressed = [];
+
+window.addEventListener('keydown', function(e){
+  keysPressed[e.key] = true;
+
+  if(keysPressed['w']){
+    heroShip.translate(0.02 * Math.sin(heroShipOrientation),0,0.02 * Math.cos(heroShipOrientation));
+  }
+  if(keysPressed['a']){
+    heroShip.children[0].rotateY(Math.PI/100); 
+    heroShipOrientation += (Math.PI/100);
+  }
+  // if(keysPressed['s']){
+
+  // }
+  if(keysPressed['d']){
+    heroShip.children[0].rotateY(-Math.PI/100); 
+    heroShipOrientation -= (Math.PI/100);
+  }
+}, false);
+window.addEventListener('keyup', function(e){
+  delete keysPressed[e.key];
+}, false);
+
+// window.addEventListener('keypress', function(e){
+//   if(e.which == 119){
+//     heroShip.translate(0.02 * Math.sin(heroShipOrientation),0,0.02 * Math.cos(heroShipOrientation));
+//   }
+//   if(e.which == 97){
+//     heroShip.children[0].rotateY(Math.PI/100); 
+//     heroShipOrientation += (Math.PI/100);
+//   }
+//   // if(e.which == 115){
+
+//   // }
+//   if(e.which == 100){
+//     heroShip.children[0].rotateY(-Math.PI/100); 
+//     heroShipOrientation -= (Math.PI/100);
+//   }
+// }, false);
+  // switch(e.which){
+  //   case 119: heroShip.translate(0.02 * Math.sin(heroShipOrientation),0,0.02 * Math.cos(heroShipOrientation)); break; //w
+  //   case 97: heroShip.children[0].rotateY(Math.PI/100); heroShipOrientation += (Math.PI/100); break; //a
+  //   case 115: console.log("s"); break; //s
+  //   case 100: heroShip.children[0].rotateY(-Math.PI/100); heroShipOrientation -= (Math.PI/100); break; //d
+  // }
+
+//Resize the canvas
+const myCanvas = document.getElementById("canvas1");
+myCanvas.style.marginLeft = "3%";
+//myCanvas.style.width = window.innerWidth * 0.9;
+//myCanvas.style.height = window.innerHeight * 0.9;
+myCanvas.style.width = "1280px";
+myCanvas.style.height = "720px";
+
+//Phong values
+let blue_plastic          = phong([0,.05,.1], [0,.25,.5], [1,1,1], 20);
+let brass                 = phong([.02,.012,0], [.02,.012,0], [1,.6,0], 10);
+let gold                  = phong([.1,.03,0], [.12,.05,0], [1,.5,0], 10);
+let green_plastic         = phong([0,.1,0], [0,.5,0], [1,1,1], 20);
+let red_mottled_plastic   = phong([.1,0,0], [.5,0,0], [1,1,1], 20, 1, 20);
+let red_plastic           = phong([.1,0,0], [.5,0,0], [1,1,1], 20);
+let steel                 = phong([.02,.02,.02], [.02,.02,.02], [1,1,1], 10);
+let white_gold            = phong([.01,.01,.008], [0,0,0], [2,2,1.6], 40);
+let white_mottled_plastic = phong([.1,.1,.1], [.5,.5,.5], [1,1,1], 20, 1, 20);
+let white_plastic         = phong([.1,.1,.1], [.5,.5,.5], [1,1,1], 20);
+
+
+
+// CREATE THE HTML DOCUMENT
+
+let vs = my_vertex_shader.innerHTML,
+    fs = my_fragment_shader.innerHTML;
+    fs = fs.substring(1, fs.length);
+
+document.body.innerHTML = [''
+   //,'<center><font size=6 color=#b0b0b0>' + my_title.innerHTML + '</center>'
+   ,'<TABLE cellspacing=0 cellpadding=0><TR>'
+   ,'<td width=50></td><td><font color=red size=5><div id=errorMessage>&nbsp;</div></font></td>'
+   ,'</TR><TR>'
+   ,'<table cellspacing=10>'
+   ,'<tr>'
+   ,'<td valign=top><font size=2 color=red><div id=errorMarker>&nbsp;</div></font></td>'
+
+   ,'</td><td valign=top>' + document.body.innerHTML + '</td>'
+   //,'<td valign=top><font size=5>' + my_instructions.innerHTML + '</td>'
+   ,'</tr></table>'
+   ,'</TR></TABLE>'
+   ,'<audio id="missileLaunchSoundContainer">'
+   ,'<source src="missileLaunchv2.mp3" type="audio/mpeg">'
+   ,'</audio>'
+   ].join('');
+
+//SOUNDS
+var missileLaunchSound = document.getElementById("missileLaunchSoundContainer");
+
+// USEFUL ANIMATION VARIABLES.
+
+let startTime = Date.now(), prevTime = startTime, rate = 1, theta = 0;
+
+
+// DELETE THE SELECTED OBJECT.
+
+let deleteSelectedObject = () => {
+   if (selectedObject)
+      selectedObject.delete();
+}
+
+
+// DEFINE ANIMATION CALLBACK, WHICH WILL GET CALLED AT EVERY FRAME.
+
+let time = 0;
+
+let viewMatrix = new Matrix();
+let inverseViewMatrix = new Matrix();
+
+let missilePoints = [];
+let missileActive = false;
+let missileCounter = 1;
+let missileCatRom = [
+   [0,0,4],
+];
+
+let turnLeft = false;
+let turnRight = false;
+
+let sceneScale = 1.0;
+
+//const keysPressed = [];
+
+function animate() {
+
+   // VARY THE ROTATION RATE DEPENDING ON THE SLIDER VALUE.
+
+   time = (Date.now() - startTime) / 1000;
+
+   // SET TIME IN THE GPU.
+
+   setUniform('1f', 'uTime', time);
+
+   // SET LIGHTS IN THE GPU.
+
+   setUniform('3fv', 'uLDir', [ .57,.57,.57, -.57,-.57,-.57, -.8,-.6,0 ]);
+   setUniform('3fv', 'uLCol', [ 1,1,1,        .25,.2,.15,     .2,.18,.16 ]);
+
+   // DRAW EVERYTHING.
+
+   viewMatrix.identity().rotateY(theta);
+
+   
+
+   inverseViewMatrix.setValue(viewMatrix.getValue());
+   inverseViewMatrix.invert();
+
+   scene.identity().multiply(viewMatrix);
+
+   //heroShip.children[0].rotateY(heroShipOrientation);
+
+   scene.scale(sceneScale);
+
+   // SET THE BACKGROUND COLOR, IN THIS CASE TO DARK BLUE.
+
+    gl.clearColor(.1,.1,.2,1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+
+   // DRAW EVERYTHING
+
+    objectAtCursor = null;
+    root.draw();
+}
+
+
+let root = new Object();
+let gui = root.add();
+let scene = root.add();
+
+//Planets
+addPlanet(1,0.5,-15, red_plastic, 3.4);
+addPlanet(-7,10,-52, blue_plastic, 1);
+
+const heroShip = createShipHumanCruiser(0,0,0, steel, 0.8);
+heroShip.translate(0,0,-2);
+
+console.log(heroShip.children[0]);
+
+   
+
+let isPressed = false;
+
+// canvas1.onPress = (x, y) => {
+//    isPressed = true;
+//    //isDragged = false;
+//    //dragObject = objectAtCursor;
+// }
+
+canvas1.onwheel = (e) => {
+  if(e.deltaY > 0 && sceneScale >= 0.2){
+    sceneScale -= 0.1;
+  }
+  else if(e.deltaY < 0 && sceneScale < 20){
+    sceneScale += 0.1;
+  }
+}
+
+canvas1.onPress = (x, y) => {
+   isPressed = true;
+
+   //Launch missile
+   let p = inverseViewMatrix.transform([x,y,0]);
+   
+   if(selectedObject){
+
+
+    let myZ = 0.1/selectedObject.hitZ;
+    //p = inverseViewMatrix.transform([x,y,myZ]);
+    p = [selectedObject.matrix.x, selectedObject.matrix.y, selectedObject.matrix.z];
+
+    let obj = scene.add(sphere, red_plastic);
+    //obj.position = p;
+    obj.identity().translate(p).scale(.1);
+
+    // let obj = scene.add(sphere, red_plastic);
+    // p = [selectedObject.x, selectedObject.y, selectedObject.z];
+    // obj.position = p;
+    // obj.identity().translate(p).scale(.1);
+  
+    for(let i = 2; i >= 0; i--){
+      missileCatRom.push([(p[0]/Math.pow(2,i)),(p[1]/Math.pow(2,i)),(p[2]/Math.pow(2,i))]);
+    }
+
+    for (let n = 0 ; n <= 20 ; n++) {   // SHOW PATH AS SMALL SPHERES.
+      let point = evalCRSpline(missileCatRom, n/20);
+      missilePoints.push(point);
+    }
+
+    missileLaunchSound.volume = 0.3;
+    missileLaunchSound.play();
+    scene.add(sphere, brass).identity().translate(missilePoints[0]).scale(0.1);
+
+    missileActive = true;
+   }
+}
+
+canvas1.onDrag = (x, y) => {
+   isDragged = true;
+
+   // DRAG THE OBJECT AT THE CURSOR TO TRANSLATE IT.
+
+   if (dragObject) {
+      let p = dragObject.translate;
+      p = viewMatrix.transform(p);
+      p[0] = x;
+      p[1] = y;
+      p = inverseViewMatrix.transform(p);
+      dragObject.translate = p;
+      transformObject(dragObject);
+   }
+} 
+
+canvas1.onRelease = (x, y) => {
+  selectedObject = null;
+  isSelecting = true;
+//    // CLICK ON THE BACKGROUND TO CREATE A NEW OBJECT.
+
+//    // if (! dragObject) {
+//    //    let p = inverseViewMatrix.transform([x,y,0]);
+//    //    let phong = materials[selectedColor];
+//    //    let obj = scene.add(shapes[selectedShape], phong);
+//    //    if (selectedTexture)
+//    //       obj.textureSrc = textureFiles[selectedTexture];
+//    //    obj.translate = p;
+//    //    obj.rotate = [0, 0, 0];
+//    //    obj.scale = [1, 1, 1];
+//    //    transformObject(obj);
+//    // }
+
+//    // // CLICK ON AN OBJECT TO SET ITS COLOR AND TEXTURE.
+
+//    // else if (! isDragged) {
+//    //    dragObject.phong = materials[selectedColor];
+//    //    dragObject.textureSrc = selectedTexture ? textureFiles[selectedTexture] : null;
+//    //    dragObject.texture = null;
+//    // }
+}
+
+
+// TRANSFORM AN OBJECT, USING ITS TRANSFORM PROPERTIES.
+
+let transformObject = obj => {
+   obj.identity()
+      .translate(obj.translate)
+      .rotateX(Math.PI * obj.rotate[0])
+      .rotateY(Math.PI * obj.rotate[1])
+      .rotateZ(Math.PI * obj.rotate[2])
+      .scale(obj.scale)
+      .scale(0.1);
+}
+
+
+canvas1.onMove = (x, y) => {
+   isPressed = false;
+   px = x;
+   py = y;
+}
+
+rotateViewSlider.oninput = function() {
+   theta = Math.PI * (.5 - this.value / 50);
+}
+
+
+// START EVERYTHING.
+
+gl_start(canvas1, vs, fs);
+
+</script>
+////////////////////////////////////////////////////
+//Add planet function
+function addPlanet(inX,inY,inZ, inPhong, inScalingFactor){
+  let newPlanet = scene.add(sphere, inPhong).identity().translate(inX,inY,inZ).scale(inScalingFactor);
+}
+
+function createShipHumanCruiser(inX,inY,inZ, inPhong, inScalingFactor){
+  //Create the parent object
+  //let newObj = scene.add();
+  let retObj = scene.add();
+  let newObj = retObj.add();
+  newObj.add(cube, inPhong);
+
+  //Set up scaling factors
+  let updatedScaleBody = [0.55,0.25,0.12];
+  let updatedScaleBackCyl = [1.26,1.26,0.5];
+  let updatedScaleGunBarrelOne = [.45,.45,.35];
+  let updatedScaleGunBarrelTwo = [.3,.3,.35];
+  let updatedScaleSuperstructurePartOne = [0.4,0.4,0.4];
+  let updatedMissileBattery = [0.2,0.4,0.4];
+  
+  //Create the body
+  newObj.identity().translate(inX, inY, inZ).scale(updatedScaleBody);
+
+  //Create the cylindrical body section
+  newObj.add(cylinder, inPhong).identity().rotateY(Math.PI/2).translate(0,0,1.46).scale(updatedScaleBackCyl);
+
+  //Add front gun barrels
+  newObj.add(cylinder, inPhong)
+  .identity()
+  .rotateY(Math.PI/2)
+  .translate(0,0.25,-1.35)
+  .scale(updatedScaleGunBarrelOne);
+  newObj.add(cylinder, inPhong).identity()
+  .rotateY(Math.PI/2)
+  .translate(0,-0.6,-1.35)
+  .scale(updatedScaleGunBarrelTwo);
+
+  //Add bridge section
+  newObj.add(cube, inPhong).identity().translate(0.7,1,0).scale(updatedScaleSuperstructurePartOne);
+  
+  //Add booster
+  newObj.add(myTack, steel).identity().rotateY(Math.PI/2).translate(0,0,1.9);
+
+  //Add the missile battery section (essentially the same as the bridge but farther back)
+  newObj.add(cube, inPhong).identity().translate(1.5,0.9,0).scale(updatedMissileBattery);
+
+  //Scale the entire ship appropriately
+  newObj.scale(inScalingFactor);
+
+  return retObj;
+}
+
+let createTestShape = function() {
+   let a = 1, b = 1, c = 1,
+       A  = .5, B = .1, C = .2;
+
+   testProfile = sampleBezierPath(
+      [a,b,  -.1,-.1,-.1,  .1,.1,.1,  b,a,c, c,a],
+      [A,B,  B,A,C, -C,-A,-B,  -B,-A,-C, C,A],
+      [0,0,0,0],
+      20);
+   return extrude(testProfile, createCircularPath(50));
+}
+
+let createBooster = function() {
+   let a = .1, b = .4, c = 0.1,
+       A  = .8, B = .5, C = 0.1;
+
+   ringProfile = sampleBezierPath(
+      [a,b,  0,0,0,  0,0,0,  b,a,c, c,a],
+      [A,B,  B,A,C, -C,-A,-B,  -B,-A,-C, C,A],
+      [0,0,0,0],
+      20);
+   return extrude(ringProfile, createCircularPath(50));
+}
+
+let myTack = createTriangleMesh(uvToLathe, 30, 30,
+   [
+      [0.5,.1, .1,1,.5, .5,.5], // r
+      [0.2,0.1, 0.1,1,0, 0,0]     // z
+   ]
+);
+
+/*
+Good booster values
+[0.5,.1, .1,1,.5, .5,.5],
+[0,0, 0,.8,.85, .4,0] More unique shape
+
+[0.5,.1, .1,1,.5, .5,.5], // r
+      [0.2,0.1, 0.1,1,0, 0,0] - More conical 
+*/
+
+/*
+function createShipHumanCruiser(inX,inY,inZ, inPhong, inScalingFactor){
+  //Create the parent object
+  let newObj = scene.add(cube, inPhong);
+
+  //Set up scaling factors
+  let updatedScaleBody = [0.55,0.25,0.12];
+  let updatedScaleBackCyl = [1.26,1.26,0.5];
+  let updatedScaleGunBarrelOne = [.45,.45,.35];
+  let updatedScaleGunBarrelTwo = [.3,.3,.35];
+  let updatedScaleSuperstructurePartOne = [0.4,0.4,0.4];
+  let updatedMissileBattery = [0.2,0.4,0.4];
+  
+  //Create the body
+  newObj.identity().translate(inX, inY, inZ).scale(updatedScaleBody);
+
+  //Create the cylindrical body section
+  newObj.add(cylinder, inPhong).identity().rotateY(Math.PI/2).translate(0,0,1.46).scale(updatedScaleBackCyl);
+
+  //Add front gun barrels
+  newObj.add(cylinder, inPhong)
+  .identity()
+  .rotateY(Math.PI/2)
+  .translate(0,0.25,-1.35)
+  .scale(updatedScaleGunBarrelOne);
+  newObj.add(cylinder, inPhong).identity()
+  .rotateY(Math.PI/2)
+  .translate(0,-0.6,-1.35)
+  .scale(updatedScaleGunBarrelTwo);
+
+  //Add bridge section
+  newObj.add(cube, inPhong).identity().translate(0.7,1,0).scale(updatedScaleSuperstructurePartOne);
+  
+  //Add booster
+  newObj.add(myTack, steel).identity().rotateY(Math.PI/2).translate(0,0,1.9);
+
+  //Add the missile battery section (essentially the same as the bridge but farther back)
+  newObj.add(cube, inPhong).identity().translate(1.5,0.9,0).scale(updatedMissileBattery);
+
+  //Scale the entire ship appropriately
+  newObj.scale(inScalingFactor);
+
+  
+  return newObj;
+}
+*/
+///////////////////////////////////////////////
+<!-- Perlin's JS Library -->
+<script src=lib10.js></script>
+
+<!-- My custom library for ships -->
+<script src=ships.js></script>
+
+<body bgcolor=black text=white link=white alink=white vlink=white>
+<center>
+<input type=range min=1 max=100 value=50 class=slider id=rotateViewSlider>
+
+<!-- Canvas object -->
+<canvas id='canvas1' height=1280 width=720></canvas>
+<div id=infoModal>
+  <p>Planet Discovered</p>
+  <p>Name: <input type=text name=planetName id=planetName></p>
+  <p><button onclick="planetName()">Enter</button><button onclick="pickRandomPlanetName()">Random Name</button></p>
+</div>
+</center>
+</body>
+
+<!!-------- VERTEX SHADER: YOU PROBABLY DON'T WANT TO CHANGE THIS RIGHT NOW -------->
+
+<script id='my_vertex_shader' type='x-shader/x-vertex'>
+   attribute vec3 aPos;
+   attribute vec3 aNor;
+   attribute vec2 aUV;
+   uniform   mat4 uPMat;
+   uniform   mat4 uMatF;
+   uniform   mat4 uMatI;
+   varying   vec3 vaPos;
+   varying   vec3 vPos;
+   varying   vec3 vNor;
+   varying   vec2 vUV;
+   void main() {
+      vec4 pos = uPMat * uMatF * vec4(aPos, 1.);
+      vec4 nor = vec4(aNor, 0.) * uMatI;
+      gl_Position = pos * vec4(1.,1.,1./10.,1.);
+      vaPos = aPos;
+      vPos = pos.xyz;
+      vNor = nor.xyz;
+      vUV  = aUV;
+   }
+</script>
+
+<!!-------- FRAGMENT SHADER: THIS IS WHERE YOU WILL DO YOUR WORK -------->
+
+<script id='my_fragment_shader' type='x-shader/x-fragment'>
+
+ const int nl = 3;            // NUMBER OF LIGHTS
+ uniform vec3  uLDir[nl];     // LIGHT DIRECTIONS
+ uniform vec3  uLCol[nl];     // LIGHT COLORS
+ uniform mat4  uM;            // MATERIAL PROPERTIES
+ uniform float uTime;         // TIME (CURRENTLY UNUSED)
+
+///////////////////////////////////////////////////////////////
+
+ uniform float uTexture;      // DO WE SHOW THE TEXTURE?
+ uniform sampler2D uSampler;  // SAMPLE THE TEXTURE USING vUV.
+
+///////////////////////////////////////////////////////////////
+
+ varying vec3  vPos;
+ varying vec3  vaPos;
+ varying vec3  vNor;
+ varying vec2  vUV;
+
+ void main() {
+    vec3 P = vPos;            // SURFACE POINT
+    vec3 N = normalize(vNor); // SURFACE NORMAL
+    vec3 E = vec3(0.,0.,1.);  // APPROX DIRECTION TO EYE
+
+    // UNPACK MATERIAL PROPERTIES MATRIX
+
+    mat4 material = uM;
+    vec3 ambient  = material[0].rgb;
+    vec3 diffuse  = material[1].rgb;
+    vec3 specular = material[2].rgb;
+    float p       = material[2].a;
+    float ta      = material[3].r;
+    float tf      = material[3].g;
+
+    // DO PHONG SHADING
+
+    vec3 color = ambient;
+    for (int i = 0 ; i < nl ; i++) {
+       vec3 R = 2. * dot(uLDir[i], N) * N - uLDir[i];
+       float d = max(0., dot(uLDir[i], N));
+       float s = pow(max(0., dot(E, R)), p);
+       color += uLCol[i] * (diffuse * d + specular * s);
+    }
+    color += specular * .02 * (.1 + noise(2. * N)) * N.z;
+    if (ta != 0.)
+       color *= 1. + ta * noise(vec3(tf * vUV, 0.));
+
+///////////////////////////////////////////////////////////////
+
+    vec4 texture = texture2D(uSampler, vUV);
+    color *= mix(vec3(1.,1.,1.), texture.rgb, texture.a * uTexture);
+
+///////////////////////////////////////////////////////////////
+
+    gl_FragColor = vec4(sqrt(color), 1.0);
+ }</script>
+
+<script>
+const namesOfPlanets = [];
+document.getElementById("infoModal").style.display = "none";
+
+function planetName(){
+  let entered = document.getElementById("planetName").value;
+  if(entered.length >= 1){
+    let nextIndex = namesOfPlanets.length;
+    namesOfPlanets.push({nextIndex, entered});
+    document.getElementById("infoModal").style.display = "none";
+    for(let i = 0; i < scene.children.length;i++){
+      if(scene.children[i] != heroShip){
+        scene.children[i].translate(0, 0, -3);
+      }
+    }
+  }
+  else{
+    pickRandomPlanetName();
+  }
+}
+function pickRandomPlanetName(){
+ let rand = Math.floor((Math.random() * randomNamesOfPlanets.length));
+ let nextIndex = namesOfPlanets.length;
+ namesOfPlanets.push({nextIndex, entered});
+ document.getElementById("infoModal").style.display = "none";
+ for(let i = 0; i < scene.children.length;i++){
+  if(scene.children[i] != heroShip){
+    scene.children[i].translate(0, 0, -3);
+    }
+  } 
+}
+
+//Orientation of the ship's front 
+//0 = Dead ahead, 270 = Nose points to the left, etc.
+let heroShipOrientation = (3 * Math.PI)/2;
+let heroShipVerticalOrientation = 
+//Keyboard events
+//Steering
+
+//Some of this code, specifically the code based on keeping an array of keys pressed
+//comes from this site
+//https://www.gavsblog.com/blog/detect-single-and-multiple-keypress-events-javascript
+
+const containedKeys = [];
+const keysPressed = [];
+window.addEventListener('keydown', function(e){
+  keysPressed[e.key] = true;
+  
+  if(keysPressed['w']){
+    //heroShip.translate(0.02 * Math.sin(heroShipOrientation),0,0.02 * Math.cos(heroShipOrientation));
+    containedKeys.push('w');
+    for(let i = 0; i < scene.children.length;i++){
+      if(scene.children[i] != heroShip){
+        scene.children[i].translate(-0.02 * Math.sin(heroShipOrientation), 0, -0.02 * Math.cos(heroShipOrientation));
+      }
+    }
+  }
+  if(keysPressed['a']){
+    heroShip.children[0].rotateY(Math.PI/100); 
+    heroShipOrientation += (Math.PI/100);
+  }
+  if(keysPressed['d']){
+    heroShip.children[0].rotateY(-Math.PI/100); 
+    heroShipOrientation -= (Math.PI/100);
+  }
+}, false);
+window.addEventListener('keyup', function(e){
+  delete keysPressed[e.key];
+  let upKey = e.key;
+  for(let i = 0; i < containedKeys.length; i++){
+    if(containedKeys[i] === upKey){
+      containedKeys.splice(i, 1);
+    }
+  }
+}, false);
+
+//Resize the canvas
+const myCanvas = document.getElementById("canvas1");
+myCanvas.style.marginLeft = "3%";
+myCanvas.style.width = "1280px";
+myCanvas.style.height = "720px";
+
+//Phong values
+let blue_plastic          = phong([0,.05,.1], [0,.25,.5], [1,1,1], 20);
+let brass                 = phong([.02,.012,0], [.02,.012,0], [1,.6,0], 10);
+let gold                  = phong([.1,.03,0], [.12,.05,0], [1,.5,0], 10);
+let green_plastic         = phong([0,.1,0], [0,.5,0], [1,1,1], 20);
+let red_mottled_plastic   = phong([.1,0,0], [.5,0,0], [1,1,1], 20, 1, 20);
+let red_plastic           = phong([.1,0,0], [.5,0,0], [1,1,1], 20);
+let steel                 = phong([.02,.02,.02], [.02,.02,.02], [1,1,1], 10);
+let white_gold            = phong([.01,.01,.008], [0,0,0], [2,2,1.6], 40);
+let white_mottled_plastic = phong([.1,.1,.1], [.5,.5,.5], [1,1,1], 20, 1, 20);
+let white_plastic         = phong([.1,.1,.1], [.5,.5,.5], [1,1,1], 20);
+let clear                 = phong([1,1,1], [0,0,0], [0,0,0], 20);
+
+
+// CREATE THE HTML DOCUMENT
+
+let vs = my_vertex_shader.innerHTML,
+    fs = my_fragment_shader.innerHTML;
+    fs = fs.substring(1, fs.length);
+
+document.body.innerHTML = [''
+   //,'<center><font size=6 color=#b0b0b0>' + my_title.innerHTML + '</center>'
+   ,'<TABLE cellspacing=0 cellpadding=0><TR>'
+   ,'<td width=50></td><td><font color=red size=5><div id=errorMessage>&nbsp;</div></font></td>'
+   ,'</TR><TR>'
+   ,'<table cellspacing=10>'
+   ,'<tr>'
+   ,'<td valign=top><font size=2 color=red><div id=errorMarker>&nbsp;</div></font></td>'
+
+   ,'</td><td valign=top>' + document.body.innerHTML + '</td>'
+   //,'<td valign=top><font size=5>' + my_instructions.innerHTML + '</td>'
+   ,'</tr></table>'
+   ,'</TR></TABLE>'
+   ,'<audio id="missileLaunchSoundContainer">'
+   ,'<source src="missileLaunchv2.mp3" type="audio/mpeg">'
+   ,'</audio>'
+   ,'<audio id="heroShipEngineSoundContainer">'
+   ,'<source src="hykenfreak_engine_sound.mp3" type="audio/mpeg">'
+   ,'</audio>'
+   ].join('');
+
+//SOUNDS
+var missileLaunchSound = document.getElementById("missileLaunchSoundContainer");
+var engineSound = document.getElementById("heroShipEngineSoundContainer");
+
+// USEFUL ANIMATION VARIABLES.
+
+let startTime = Date.now(), prevTime = startTime, rate = 1, theta = 0;
+
+
+// DELETE THE SELECTED OBJECT.
+
+let deleteSelectedObject = () => {
+   if (selectedObject)
+      selectedObject.delete();
+}
+
+
+// DEFINE ANIMATION CALLBACK, WHICH WILL GET CALLED AT EVERY FRAME.
+
+let time = 0;
+
+let viewMatrix = new Matrix();
+let inverseViewMatrix = new Matrix();
+
+let missilePoints = [];
+let missileActive = false;
+let missileCounter = 1;
+let missileCatRom = [
+   [0,0,4],
+];
+
+let turnLeft = false;
+let turnRight = false;
+
+let sceneScale = 1.0;
+
+//const keysPressed = [];
+
+function animate() {
+   // VARY THE ROTATION RATE DEPENDING ON THE SLIDER VALUE.
+
+   time = (Date.now() - startTime) / 1000;
+
+   // SET TIME IN THE GPU.
+
+   setUniform('1f', 'uTime', time);
+
+   // SET LIGHTS IN THE GPU.
+
+   setUniform('3fv', 'uLDir', [ .57,.57,.57, -.57,-.57,-.57, -.8,-.6,0 ]);
+   setUniform('3fv', 'uLCol', [ 1,1,1,        .25,.2,.15,     .2,.18,.16 ]);
+
+   // DRAW EVERYTHING.
+
+   //viewMatrix.identity().rotateY(theta);
+
+   
+   inverseViewMatrix.setValue(viewMatrix.getValue());
+   inverseViewMatrix.invert();
+
+   scene.identity().multiply(viewMatrix);
+
+   let collisionInfo = collisionTest();
+   if(collisionInfo.coll && time > 2){
+     document.getElementById("infoModal").style.display = "block";
+   }
+
+   //scene.rotateY(theta);
+   scene.scale(sceneScale);
+   scene.rotateY(theta);
+   // SET THE BACKGROUND COLOR, IN THIS CASE TO DARK BLUE.
+
+    //gl.clearColor(.1,.1,.2,1);
+    gl.clearColor(0,0,0,1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+
+   // DRAW EVERYTHING
+
+    objectAtCursor = null;
+    root.draw();
+}
+
+
+let root = new Object();
+let gui = root.add();
+let scene = root.add();
+
+//Planets
+addPlanet(1,0.5,-15, red_plastic, 3.4);
+addPlanet(-7,10,-52, blue_plastic, 1);
+addPlanet(-14, 6, -47, green_plastic, 2);
+addPlanet(1.2, 15, -100, green_plastic, 2);
+addPlanet(15, 15, -90, blue_plastic, 2);
+
+const heroShip = createShipHumanCruiser(0,0,0, steel, 0.8);
+heroShip.translate(0,0,-2);   
+
+
+let isPressed = false;
+
+// canvas1.onPress = (x, y) => {
+//    isPressed = true;
+//    //isDragged = false;
+//    //dragObject = objectAtCursor;
+// }
+
+//Collision test
+function collisionTest(){
+  //Get the bounding box of the hero ship
+  let heroBox = scene.children[scene.children.length - 1].children[0].children[7];
+  
+  //Create new pm matrix
+  let pm = heroBox.globalMatrix;
+  pm.rotateY(theta);
+  //let pm = new Matrix();
+  //pm.setValue(perspectiveMatrix).multiply(heroBox.globalMatrix);
+  //Set standard stride
+  let stride = 8;
+
+  //Transform matrix corresponding to the ship's bounding box
+  let V1 = [];
+  let aMaxX = -1000, aMaxY = -1000, aMaxZ = -1000, aMinX = 1000, aMinY = 1000, aMinZ = 1000;
+  //When transforming the vertices, see if the x, y and z coordinates are the new min or max x,y, and z coordinates
+  for (let i = 0 ; i < heroBox.shape.length ; i += stride) {
+    let p = pm.transform([ heroBox.shape[i], heroBox.shape[i+1], heroBox.shape[i+2], 1 ]);
+    if(p[0]/p[3] > aMaxX){aMaxX = p[0]/p[3]};
+    if(p[0]/p[3] < aMinX){aMinX = p[0]/p[3]};
+    if(p[1]/p[3] > aMaxY){aMaxY = p[1]/p[3]};
+    if(p[1]/p[3] < aMinY){aMinY = p[1]/p[3]};
+    if(p[2]/p[3] > aMaxZ){aMaxZ = p[2]/p[3]};
+    if(p[2]/p[3] < aMinZ){aMinZ = p[2]/p[3]};
+    V1.push([ p[0]/p[3], p[1]/p[3], p[2]/p[3] ]);
+  }
+  
+  var obj = {};
+
+  //For each shape that is NOT the ship, transform the vertices of its bounding box
+  for(let i = 0; i < (scene.children.length - 1); i++){
+    //Get bounding box of each shape
+    let checkShape = scene.children[i].children[0].children[1];
+    
+    let pmN = checkShape.globalMatrix;
+    pmN.rotateY(theta);
+    //let pmN = new Matrix();
+    //pmN.setValue(perspectiveMatrix).multiply(checkShape.globalMatrix);
+
+    //For each vertex of each bounding box, is the x,y, and z coordinate the new min or max x,y,z coordinate?
+    let bMaxX = -1000, bMaxY = -1000, bMaxZ = -1000, bMinX = 1000, bMinY = 1000, bMinZ = 1000;
+    let V2 = [];
+    for(let j = 0; j < checkShape.shape.length; j += stride){
+      //Set up new pm matrix
+      
+      let pN = pmN.transform([checkShape.shape[j], checkShape.shape[j + 1], checkShape.shape[j + 2], 1]);
+      //console.log(pN);
+      //let pN = new Matrix();
+      //pN.setValue(perspectiveMatrix).multiply()
+      if(pN[0]/pN[3] > bMaxX){bMaxX = pN[0]/pN[3]};
+      if(pN[0]/pN[3] < bMinX){bMinX = pN[0]/pN[3]};
+      if(pN[1]/pN[3] > bMaxY){bMaxY = pN[1]/pN[3]};
+      if(pN[1]/pN[3] < bMinY){bMinY = pN[1]/pN[3]};
+      if(pN[2]/pN[3] > bMaxZ){bMaxZ = pN[2]/pN[3]};
+      if(pN[2]/pN[3] < bMinZ){bMinZ = pN[2]/pN[3]};
+      V2.push([pN[0]/pN[3], pN[1]/pN[3], pN[2]/pN[3]]);
+    }
+
+    //Actually determines if there's a collision or not
+    //console.log(aMinX, bMaxX, ',', aMaxX, bMinX, ',', aMinY, bMaxY, ',', aMaxY, bMinY, ',', aMinZ, bMaxZ, ',', aMaxZ, bMinZ);
+
+    // return ((aMinX <= bMaxX && aMaxX >= bMinX) && 
+    //         (aMinY <= bMaxY && aMaxY >= bMinY) && 
+    //         (aMinZ <= bMaxZ && aMaxZ >= bMinZ));
+    if((aMinX <= bMaxX && aMaxX >= bMinX) && 
+             (aMinY <= bMaxY && aMaxY >= bMinY) && 
+             (aMinZ <= bMaxZ && aMaxZ >= bMinZ)){
+      obj.coll = true;
+      obj.index = i;
+      return obj;
+    }
+  }
+  obj.coll = false;
+  obj.index = -1;
+  return obj;
+}
+
+canvas1.onwheel = (e) => {
+  if(e.deltaY > 0 && sceneScale >= 0.2){
+    sceneScale -= 0.1;
+  }
+  else if(e.deltaY < 0 && sceneScale < 20){
+    sceneScale += 0.1;
+  }
+}
+
+canvas1.onPress = (x, y) => {
+   isPressed = true;
+
+   //Launch missile
+   //MISSILE LAUNCHING SECTION
+   let p = inverseViewMatrix.transform([x,y,0]);
+   
+   // if(selectedObject){
+
+
+   //  let myZ = 0.1/selectedObject.hitZ;
+   //  //p = inverseViewMatrix.transform([x,y,myZ]);
+   //  p = [selectedObject.matrix.x, selectedObject.matrix.y, selectedObject.matrix.z];
+
+   //  let obj = scene.add(sphere, red_plastic);
+   //  //obj.position = p;
+   //  obj.identity().translate(p).scale(.1);
+
+   //  // let obj = scene.add(sphere, red_plastic);
+   //  // p = [selectedObject.x, selectedObject.y, selectedObject.z];
+   //  // obj.position = p;
+   //  // obj.identity().translate(p).scale(.1);
+  
+   //  for(let i = 2; i >= 0; i--){
+   //    missileCatRom.push([(p[0]/Math.pow(2,i)),(p[1]/Math.pow(2,i)),(p[2]/Math.pow(2,i))]);
+   //  }
+
+   //  for (let n = 0 ; n <= 20 ; n++) {   // SHOW PATH AS SMALL SPHERES.
+   //    let point = evalCRSpline(missileCatRom, n/20);
+   //    missilePoints.push(point);
+   //  }
+
+   //  missileLaunchSound.volume = 0.3;
+   //  missileLaunchSound.play();
+   //  scene.add(sphere, brass).identity().translate(missilePoints[0]).scale(0.1);
+
+   //  missileActive = true;
+   // }
+}
+
+canvas1.onDrag = (x, y) => {
+   isDragged = true;
+
+   // DRAG THE OBJECT AT THE CURSOR TO TRANSLATE IT.
+
+   // if (dragObject) {
+   //    let p = dragObject.translate;
+   //    p = viewMatrix.transform(p);
+   //    p[0] = x;
+   //    p[1] = y;
+   //    p = inverseViewMatrix.transform(p);
+   //    dragObject.translate = p;
+   //    transformObject(dragObject);
+   // }
+} 
+
+canvas1.onRelease = (x, y) => {
+  selectedObject = null;
+  isSelecting = true;
+//    // CLICK ON THE BACKGROUND TO CREATE A NEW OBJECT.
+
+//    // if (! dragObject) {
+//    //    let p = inverseViewMatrix.transform([x,y,0]);
+//    //    let phong = materials[selectedColor];
+//    //    let obj = scene.add(shapes[selectedShape], phong);
+//    //    if (selectedTexture)
+//    //       obj.textureSrc = textureFiles[selectedTexture];
+//    //    obj.translate = p;
+//    //    obj.rotate = [0, 0, 0];
+//    //    obj.scale = [1, 1, 1];
+//    //    transformObject(obj);
+//    // }
+
+//    // // CLICK ON AN OBJECT TO SET ITS COLOR AND TEXTURE.
+
+//    // else if (! isDragged) {
+//    //    dragObject.phong = materials[selectedColor];
+//    //    dragObject.textureSrc = selectedTexture ? textureFiles[selectedTexture] : null;
+//    //    dragObject.texture = null;
+//    // }
+}
+
+
+// TRANSFORM AN OBJECT, USING ITS TRANSFORM PROPERTIES.
+
+let transformObject = obj => {
+   obj.identity()
+      .translate(obj.translate)
+      .rotateX(Math.PI * obj.rotate[0])
+      .rotateY(Math.PI * obj.rotate[1])
+      .rotateZ(Math.PI * obj.rotate[2])
+      .scale(obj.scale)
+      .scale(0.1);
+}
+
+
+canvas1.onMove = (x, y) => {
+   isPressed = false;
+   px = x;
+   py = y;
+}
+
+rotateViewSlider.oninput = function() {
+   theta = Math.PI * (.5 - this.value / 50);
+}
+
+
+// START EVERYTHING.
+if(state == 1)
+gl_start(canvas1, vs, fs);
+
+</script>
+
